@@ -1,0 +1,72 @@
+<?php
+function thumb($sourcefile, $targetfile, $size) 
+{
+	$size = $size;   // Max størrelse (pixler)
+	$source_id = imagecreatefromjpeg($sourcefile);
+	$source_x = imagesx($source_id);
+	$source_y = imagesy($source_id);
+	$delta = $size/max($source_x, $source_y);
+	$dest_x = round($source_x*$delta);
+	$dest_y = round($source_y*$delta);
+	$target_id=imagecreatetruecolor($dest_x, $dest_y);
+	imagecopyresampled($target_id,$source_id,0,0,0,0, $dest_x,$dest_y, $source_x,$source_y);
+	imagejpeg($target_id,$targetfile,100);
+}
+function real($sourcefile, $targetfile) 
+{
+	$size = 500;   // Max størrelse horizontal (pixler)
+	$source_id = imagecreatefromjpeg($sourcefile);
+	$source_x = imagesx($source_id);
+	$source_y = imagesy($source_id);
+							
+	if($source_x > $size)
+	{
+		$multiplier = $size / $source_x;
+		$dest_x = round($source_x*$multiplier);
+		$dest_y = round($source_y*$multiplier);
+	} else {
+		$dest_x = $source_x;
+		$dest_y = $source_y;
+	}
+	$target_id=imagecreatetruecolor($dest_x, $dest_y);
+	imagecopyresampled($target_id,$source_id,0,0,0,0, $dest_x,$dest_y, $source_x,$source_y);
+	imagejpeg($target_id,$targetfile,100);
+}
+
+if(isset($_POST['Submit'])) 
+{
+	$konfiguration["upload_bibliotek"] = "gfx/gallery/";
+		
+	$aFile = $_FILES['img'];
+	$allowed_filetypes = array('image/jpeg','image/jpg','image/jpe');
+	if(in_array($aFile['type'], $allowed_filetypes))
+	{
+		if(filesize($aFile['tmp_name']) <= 1000000) // 1 mB
+		{			
+			/* Hvor flytter vi fra og til */
+			$fra = $_FILES["img"]["tmp_name"];
+			$time = time();
+							
+			$time = time();
+			$til = $konfiguration["upload_bibliotek"] . "/" . $time . ".jpg";
+			$thumb = $konfiguration["upload_bibliotek"] . "/"  . $time . "_small.jpg";
+			thumb($fra, $thumb, 100); // Kald funktion
+			real($fra,$til);
+
+			$db->execute_query("INSERT INTO bmx_user_gallery_pics (id, gallery_id, url, comment, timestamp, rating) VALUES ('NULL','".quote_smart($_POST['galleri'])."','$_SESSION[s_username]/$time.jpg','".quote_smart($_POST['comment'])."','$time','NULL')");
+			$db->execute_query("UPDATE bmx_user_gallery SET last_modified = '$time' WHERE id = '".quote_smart($_POST['galleri'])."'");							
+			echo"<b>Dit billede er nu uploadet!</b>";
+			}
+			else 
+			{
+				echo"<b>Dit billede er større end den tilladte grænse på 1 MB!</b>";
+			}
+		}
+		else 
+		{
+			echo"Forkert filtype, billeder må kun være jpeg billeder";
+			echo "<br>Din fil var af typen $aFile[type]";
+		}
+	}
+}
+?>
